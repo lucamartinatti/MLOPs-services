@@ -5,35 +5,42 @@ from sklearn.model_selection import train_test_split
 DATA_PATH = "./data/titanic/"
 
 
-def data_prepartation(dataset):
-    for i in range(len(dataset)):
-        freq_port = dataset[i]["Embarked"].dropna().mode()[0]
-        dataset[i]["Embarked"] = dataset[i]["Embarked"].fillna(freq_port)
+def data_loader():
+    train_set = pd.read_csv(DATA_PATH + "train.csv")
+    test_set = pd.read_csv(DATA_PATH + "test.csv")
+    return [train_set, test_set]
+
+
+def data_prepartation(dataset: pd.DataFrame) -> (pd.DataFrame, pd.DataFrame):
+    freq_port = dataset["Embarked"].dropna().mode()[0]
+    dataset["Embarked"] = dataset["Embarked"].fillna(freq_port)
 
     encoder = LabelEncoder()
-    categoricalFeatures = dataset[0].select_dtypes(include=["object"]).columns
-    for i, data in enumerate(dataset):
-        data[categoricalFeatures] = data[categoricalFeatures].astype(str)
-        encoded = data[categoricalFeatures].apply(encoder.fit_transform)
-        for j in categoricalFeatures:
-            dataset[i][j] = encoded[j]
-    for i, data in enumerate(dataset):
-        dataset[i] = dataset[i].drop(["PassengerId", "Name", "Ticket", "Cabin"], axis=1)
+    categoricalFeatures = dataset.select_dtypes(include=["object"]).columns
+
+    dataset[categoricalFeatures] = dataset[categoricalFeatures].astype(str)
+    encoded = dataset[categoricalFeatures].apply(encoder.fit_transform)
+
+    for j in categoricalFeatures:
+        dataset[j] = encoded[j]
+
+    dataset = dataset.drop(["PassengerId", "Name", "Ticket", "Cabin"], axis=1)
 
     # TODO fill NaN
 
-    Y = dataset[0].pop("Survived")
-    X = dataset[0]
+    Y = dataset.pop("Survived") if "Survived" in dataset.columns else None
 
-    return X, Y, dataset[1]
+    return dataset, Y
+
+
+def main():
+    train, test = data_loader()
+
+    X, Y = data_prepartation(train)
+    X_test, Y_test = data_prepartation(test)
+
+    X_train, X_val, y_train, y_val = train_test_split(X, Y, test_size=0.20)
 
 
 if __name__ == "__main__":
-    train_set = pd.read_csv(DATA_PATH + "train.csv")
-    test_set = pd.read_csv(DATA_PATH + "test.csv")
-    dataset = [train_set, test_set]
-
-    X, Y, X_test = data_prepartation(dataset)
-
-    X_train, X_val, y_train, y_val = train_test_split(X, Y, test_size=0.20)
-    print("")
+    main()
