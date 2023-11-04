@@ -18,10 +18,11 @@ def data_loader() -> list[pd.DataFrame]:
 
 
 def fill_nan_with_mode(df: pd.DataFrame, columns: list[str]) -> pd.DataFrame:
+    df_copy = df.copy()
     for col in columns:
-        freq_port = df[col].dropna().mode()[0]
-        df[col] = df[col].fillna(freq_port)
-    return df
+        freq_port = df_copy[col].dropna().mode()[0]
+        df_copy[col] = df_copy[col].fillna(freq_port)
+    return df_copy
 
 
 def categorical_features_encoder(df: pd.DataFrame) -> pd.DataFrame:
