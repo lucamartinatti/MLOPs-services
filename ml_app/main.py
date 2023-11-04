@@ -4,40 +4,57 @@ from sklearn.model_selection import train_test_split
 
 DATA_PATH = "./data/titanic/"
 
+data_config = {
+    "drop": ["PassengerId", "Name", "Ticket", "Cabin"],
+    "fill_nan": ["Embarked"],
+    "label": "Survived",
+}
 
-def data_loader():
+
+def data_loader() -> list[pd.DataFrame]:
     train_set = pd.read_csv(DATA_PATH + "train.csv")
     test_set = pd.read_csv(DATA_PATH + "test.csv")
     return [train_set, test_set]
 
 
-def data_prepartation(dataset: pd.DataFrame) -> (pd.DataFrame, pd.DataFrame):
-    freq_port = dataset["Embarked"].dropna().mode()[0]
-    dataset["Embarked"] = dataset["Embarked"].fillna(freq_port)
+def fill_nan_with_mode(df: pd.DataFrame, columns: list[str]) -> pd.DataFrame:
+    for col in columns:
+        freq_port = df[col].dropna().mode()[0]
+        df[col] = df[col].fillna(freq_port)
+    return df
 
+
+def categorical_features_encoder(df: pd.DataFrame) -> pd.DataFrame:
     encoder = LabelEncoder()
-    categoricalFeatures = dataset.select_dtypes(include=["object"]).columns
+    categoricalFeatures = df.select_dtypes(include=["object"]).columns
 
-    dataset[categoricalFeatures] = dataset[categoricalFeatures].astype(str)
-    encoded = dataset[categoricalFeatures].apply(encoder.fit_transform)
+    df[categoricalFeatures] = df[categoricalFeatures].astype(str)
+    encoded = df[categoricalFeatures].apply(encoder.fit_transform)
 
     for j in categoricalFeatures:
-        dataset[j] = encoded[j]
+        df[j] = encoded[j]
 
-    dataset = dataset.drop(["PassengerId", "Name", "Ticket", "Cabin"], axis=1)
+    return df
 
-    # TODO fill NaN
 
-    Y = dataset.pop("Survived") if "Survived" in dataset.columns else None
+def data_prepartation(x: pd.DataFrame, config: dict) -> (pd.DataFrame, pd.DataFrame):
+    x = fill_nan_with_mode(x, config["fill_nan"])
 
-    return dataset, Y
+    x = categorical_features_encoder(x)
+
+    x = x.drop(config["drop"], axis=1)
+
+    y = x.pop(config["label"]) if config["label"] in x.columns else None
+
+    return x, y
 
 
 def main():
     train, test = data_loader()
 
-    X, Y = data_prepartation(train)
-    X_test, Y_test = data_prepartation(test)
+    X, Y = data_prepartation(train, data_config)
+
+    X_test, Y_test = data_prepartation(test, data_config)
 
     X_train, X_val, y_train, y_val = train_test_split(X, Y, test_size=0.20)
 
