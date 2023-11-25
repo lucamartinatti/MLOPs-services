@@ -82,7 +82,7 @@ def dataset_creator(x: pd.DataFrame, config: dict) -> TitanicDataset:
     return train_dataset
 
 
-def main():
+def train_function():
     config = TrainConfig(input_size, hidden_size, output_size, learning_rate, epochs)
 
     train, test = data_loader()
@@ -96,7 +96,9 @@ def main():
 
     trainer(network, train_loader, config)
 
-    print("END")
+
+def main():
+    train_function()
 
 
 if __name__ == "__main__":

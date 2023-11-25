@@ -1,6 +1,9 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torchmetrics import Accuracy
+import mlflow.pytorch
+from mlflow import MlflowClient
 
 
 class TrainConfig:
@@ -18,6 +21,9 @@ class BasicNetwork(nn.Module):
         self.fc1 = nn.Linear(config.input_size, config.hidden_size)
         self.fc2 = nn.Linear(config.hidden_size, config.output_size)
 
+        self.accuracy = Accuracy("multiclass", num_classes=2)
+        self.config = config
+
     def forward(self, x):
         x = self.fc1(x)
         x = F.dropout(x, p=0.1)
@@ -26,18 +32,28 @@ class BasicNetwork(nn.Module):
         x = F.sigmoid(x)
         return x
 
-
-def trainer(network: BasicNetwork, train_loader, config: TrainConfig):
-    criterion = nn.BCELoss()
-    optimizer = torch.optim.Adam(network.parameters(), lr=config.learning_rate)
-
-    for epoch in range(config.epochs):
-        running_loss = 0.0
+    def train_epoch(self, train_loader):
+        criterion = nn.BCELoss()
+        optimizer = torch.optim.Adam(self.parameters(), lr=self.config.learning_rate)
         for inputs, labels in train_loader:
             optimizer.zero_grad()
-            outputs = network(inputs)
+            outputs = self(inputs)
             loss = criterion(outputs, labels)
             loss.backward()
             optimizer.step()
-            running_loss += loss.item()
-        print(f"Epoch [{epoch+1}/{config.epochs}], Loss: {running_loss}")
+
+        # acc = self.accuracy(inputs, labels)  # use validation data instead
+        # Log performances
+        # self.log("train_loss", loss, on_epoch=True)
+        # self.log("acc", acc, on_epoch=True)
+        return loss.item()
+
+
+def trainer(network: BasicNetwork, train_loader, config: TrainConfig):
+    with mlflow.start_run():
+        running_loss = 0.0
+        for epoch in range(config.epochs):
+            loss = network.train_epoch(train_loader)
+            running_loss += loss
+            mlflow.log_metric(key="loss", value=loss, step=epoch)
+            print(f"Epoch [{epoch+1}/{config.epochs}], Loss: {running_loss}")
